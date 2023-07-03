@@ -9,14 +9,14 @@ struct StatusLed {
         pinMode(pin, OUTPUT);
     }
 
-    int add_pattern(int shorts, int longs) {
+    uint8_t add_pattern(int shorts, int longs) {
         if (pattern_count >= 10) {
             return -1;
         }
         this->patterns[pattern_count++] = {shorts, longs};
     }
 
-    void set_pattern(int pattern) {
+    void set_pattern(uint8_t pattern) {
         if (pattern < 0 || pattern >= pattern_count) {
             this->current_pattern = -1;
             return;

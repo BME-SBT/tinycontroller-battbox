@@ -30,18 +30,6 @@
 
 #define CONTACTOR_OPEN_DELAY 10
 
-StatusLed statusLed(PIN_OUT_LED, 500, 1000, 500, 1500);
-
-int unsafeStatePattern;
-int systemOffPattern;
-
-int systemOnDischargeOffChargeOffPattern;
-int systemOnDischargeOnChargeOffPattern;
-int systemOnDischargeOffChargeOnPatternMPPT;
-int systemOnDischargeOffChargeOnPatternExternal;
-
-int systemOnDischargeOnChargeOnPatternMPPT;
-int systemOnDischargeOnChargeOnPatternExternal;
 
 enum class CtrlState {
     NotSafeInit,
@@ -70,17 +58,8 @@ ChargerSelector chargerSelector = ChargerSelector::MpptCharger;
 DischargeState dischargeState = DischargeState::DischargeDisabled;
 ChargerSelector lastUsedCharger = ChargerSelector::MpptCharger;
 
+
 void setup() {
-    unsafeStatePattern = statusLed.add_pattern(5,0);
-    systemOffPattern = statusLed.add_pattern(0,1);
-    systemOnDischargeOffChargeOffPattern = statusLed.add_pattern(1,2);
-    systemOnDischargeOnChargeOffPattern = statusLed.add_pattern(1,3);
-    systemOnDischargeOffChargeOnPatternMPPT = statusLed.add_pattern(2,2);
-    systemOnDischargeOffChargeOnPatternExternal = statusLed.add_pattern(3,2);
-    systemOnDischargeOnChargeOnPatternMPPT = statusLed.add_pattern(2,3);
-    systemOnDischargeOnChargeOnPatternExternal = statusLed.add_pattern(3,3);
-
-
     pinMode(PIN_IN_SYSTEM, INPUT);
     pinMode(PIN_IN_N_DISCHARGE_EN, INPUT);
     pinMode(PIN_IN_N_CHARGE_EN, INPUT);
@@ -100,8 +79,9 @@ void setup() {
     pinMode(PIN_OUT_LED, OUTPUT);
 
     delay(1000);
-    statusLed.set_pattern(unsafeStatePattern);
 }
+
+
 
 void loop() {
     // read inputs
@@ -116,7 +96,6 @@ void loop() {
         case CtrlState::NotSafeInit:
             if (systemSwitch == LOW) {
                 ctrlState = CtrlState::SystemOff;
-                statusLed.set_pattern(systemOffPattern);
             }
             break;
 
@@ -158,26 +137,10 @@ void loop() {
             chargerSelector = ChargerSelector::ExternalCharger;
         }
 
-        // update status led
-        if(dischargeState == DischargeState::DischargeDisabled && chargeState == ChargeState::ChargeDisabled)
-            statusLed.set_pattern(systemOnDischargeOffChargeOffPattern);
-        if(dischargeState == DischargeState::DischargeEnabled && chargeState == ChargeState::ChargeDisabled)
-            statusLed.set_pattern(systemOnDischargeOnChargeOffPattern);
-        if(dischargeState == DischargeState::DischargeEnabled && chargeState == ChargeState::ChargeEnabled && chargerSelector == ChargerSelector::MpptCharger)
-            statusLed.set_pattern(systemOnDischargeOnChargeOnPatternMPPT);
-        if(dischargeState == DischargeState::DischargeEnabled && chargeState == ChargeState::ChargeEnabled && chargerSelector == ChargerSelector::ExternalCharger)
-            statusLed.set_pattern(systemOnDischargeOnChargeOnPatternExternal);
-        if(dischargeState == DischargeState::DischargeDisabled && chargeState == ChargeState::ChargeEnabled && chargerSelector == ChargerSelector::MpptCharger)
-            statusLed.set_pattern(systemOnDischargeOffChargeOnPatternMPPT);
-        if(dischargeState == DischargeState::DischargeDisabled && chargeState == ChargeState::ChargeEnabled && chargerSelector == ChargerSelector::ExternalCharger)
-            statusLed.set_pattern(systemOnDischargeOffChargeOnPatternExternal);
-
-
     } else {
         chargeState = ChargeState::ChargeDisabled;
         chargerSelector = ChargerSelector::MpptCharger;
         dischargeState = DischargeState::DischargeDisabled;
-        statusLed.set_pattern(systemOffPattern);
     }
 
     // ------------------------------------------------------------------------
@@ -188,9 +151,9 @@ void loop() {
     }
 
     if (dischargeState == DischargeState::DischargeEnabled) {
-        digitalWrite(PIN_OUT_BMS_RPWR, HIGH);
+        digitalWrite(PIN_OUT_DISCHARGE_CONT, HIGH);
     } else {
-        digitalWrite(PIN_OUT_BMS_RPWR, LOW);
+        digitalWrite(PIN_OUT_DISCHARGE_CONT, LOW);
     }
 
     if (chargeState == ChargeState::ChargeEnabled) {
@@ -213,5 +176,17 @@ void loop() {
         digitalWrite(PIN_OUT_EXT_CONT, LOW);
     }
 
-    statusLed.tick();
+    uint64_t time = millis();
+    if(ctrlState == CtrlState::NotSafeInit) {
+        if(lastLedSwitch + LED_BLINK_NOTSAFE < time){
+            lastLedSwitch = time;
+            digitalWrite(PIN_OUT_LED, CHANGE);
+        }
+    }else {
+        if(lastLedSwitch + LED_BLINK_OK < time) {
+            lastLedSwitch = time;
+            digitalWrite(PIN_OUT_LED, CHANGE);
+        }
+    }
+
 }
